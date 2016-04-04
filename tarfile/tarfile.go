@@ -56,23 +56,26 @@ type metadataRecord struct {
 }
 
 type TarFile struct {
-	w *tar.Writer
-	r *tar.Reader
+	w    *tar.Writer
+	r    *tar.Reader
+	size int64
 }
 
 // Create a new tar file for writing.
 func New(w io.Writer) *TarFile {
 	return &TarFile{
-		w: tar.NewWriter(w),
-		r: nil,
+		w:    tar.NewWriter(w),
+		r:    nil,
+		size: 0,
 	}
 }
 
 // Open a tar file for reading
 func Open(r io.Reader) *TarFile {
 	return &TarFile{
-		w: nil,
-		r: tar.NewReader(r),
+		w:    nil,
+		r:    tar.NewReader(r),
+		size: 0,
 	}
 }
 
@@ -97,6 +100,10 @@ func (tf *TarFile) Close() error {
 		return writeError
 	}
 	return tf.w.Close()
+}
+
+func (tf *TarFile) Size() int64 {
+	return tf.size
 }
 
 func (tf *TarFile) ReadFile(w io.Writer) (info os.FileInfo, err error) {
@@ -134,6 +141,8 @@ func (tf *TarFile) WriteFile(info os.FileInfo, r io.Reader) (n int, err error) {
 	if err != nil {
 		return 0, err
 	}
+
+	tf.size += written
 
 	return int(written), nil
 }
@@ -174,5 +183,10 @@ func (tf *TarFile) WriteMetadata(name string, data []byte) (n int, err error) {
 		return 0, err
 	}
 
-	return tf.w.Write(data)
+	n, err = tf.w.Write(data)
+	if err != nil {
+		return 0, err
+	}
+	tf.size += int64(n)
+	return n, nil
 }
