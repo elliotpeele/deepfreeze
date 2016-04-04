@@ -177,6 +177,7 @@ func (tf *TarFile) WriteMetadata(name string, data []byte) (n int, err error) {
 
 	header := &tar.Header{
 		Name: name,
+		Size: int64(len(data)),
 	}
 
 	if err := tf.w.WriteHeader(header); err != nil {
