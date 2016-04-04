@@ -66,6 +66,9 @@ func (t *Tray) CurrentCube() *cube.Cube {
 }
 
 func (t *Tray) NextCube() (*cube.Cube, error) {
+	if err := t.CurrentCube().Close(); err != nil {
+		return nil, err
+	}
 	c, err := t.CurrentCube().Next()
 	if err != nil {
 		return nil, err

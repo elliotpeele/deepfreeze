@@ -67,5 +67,9 @@ func (f *Freezer) Freeze() error {
 		}
 	}
 
+	if err := t.CurrentCube().Close(); err != nil {
+		return err
+	}
+
 	return nil
 }
