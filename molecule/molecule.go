@@ -38,8 +38,10 @@ type Molecule struct {
 	CompressedSize int64        `json:"compressed_size"`
 	EncryptedSize  int64        `json:"encrypted_size"`
 
-	finfo os.FileInfo
-	fobj  *os.File
+	finfo           os.FileInfo
+	compressed_info os.FileInfo
+	encrypted_info  os.FileInfo
+	fobj            *os.File
 }
 
 func New(path string, hash string) (*Molecule, error) {
@@ -93,12 +95,22 @@ func (m *Molecule) Size() int64 {
 }
 
 func (m *Molecule) Info() os.FileInfo {
+	switch {
+	case m.encrypted_info != nil:
+		return m.encrypted_info
+	case m.compressed_info != nil:
+		return m.compressed_info
+	default:
+		return m.finfo
+	}
+}
+
+func (m *Molecule) OrigInfo() os.FileInfo {
 	return m.finfo
 }
 
-func (m *Molecule) Header() (string, error) {
-
-	return "", nil
+func (m *Molecule) Header() ([]byte, error) {
+	return []byte{}, nil
 }
 
 func (m *Molecule) Encrypt() error {
