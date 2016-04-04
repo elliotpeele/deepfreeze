@@ -19,7 +19,6 @@ package cube
 import (
 	"archive/tar"
 	"bytes"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -28,6 +27,7 @@ import (
 
 	"github.com/elliotpeele/deepfreeze/atom"
 	"github.com/elliotpeele/deepfreeze/molecule"
+	"github.com/elliotpeele/deepfreeze/tarfile"
 	"github.com/satori/go.uuid"
 )
 
@@ -46,8 +46,7 @@ type Cube struct {
 	Size        int64                `json:"size"`
 
 	backingfile *os.File
-	tarw        *tar.Writer
-	tarr        *tar.Reader
+	tf          *tarfile.TarFile
 	remaining   int64
 }
 
@@ -65,8 +64,7 @@ func New(size int64) (*Cube, error) {
 		Size:      0,
 
 		backingfile: fobj,
-		tarw:        tar.NewWriter(fobj),
-		tarr:        nil,
+		tf:          tarfile.New(fobj),
 		remaining:   size * 1024 * 1024, // Size in bytes
 	}, nil
 }
@@ -78,8 +76,7 @@ func Open(name string) (*Cube, error) {
 	}
 	c := &Cube{
 		backingfile: fobj,
-		tarw:        nil,
-		tarr:        tar.NewReader(fobj),
+		tf:          tarfile.Open(fobj),
 	}
 	if err := c.unpackHeader(); err != nil {
 		return nil, err
@@ -87,59 +84,12 @@ func Open(name string) (*Cube, error) {
 	return c, nil
 }
 
-func (c *Cube) Read(p []byte) (n int, err error) {
-	if c.tarr == nil {
-		return 0, fmt.Errorf("can not read from write only cube")
-	}
-	return 0, nil
-}
-
-func (c *Cube) Write(p []byte) (n int, err error) {
-	if c.tarw == nil {
-		return 0, fmt.Errorf("can not write to read only cube")
-	}
-	return 0, nil
-}
-
 func (c *Cube) WriteMolecule(m *molecule.Molecule) (n int, err error) {
-	if c.tarw == nil {
-		return 0, fmt.Errorf("can not write to read only cube")
-	}
-
-	// Info is the file info object for the original file.
-	size, err := c.getTarHeaderSize(m.Info())
-	if err != nil {
-		return 0, err
-	}
-	// Can't fit header plus some data in this cube, go to next cube.
-	if size >= c.remaining {
-		return 0, nil
-	}
-
-	// Create header from file info.
-	header, err := tar.FileInfoHeader(m.Info(), "")
-	if err != nil {
-		return 0, err
-	}
-	// Write tar header
-	if err := c.tarw.WriteHeader(header); err != nil {
-		return 0, err
-	}
-
 	return 0, nil
-}
-
-func (c *Cube) Seek(offset int64, whence int) (int64, error) {
-	return c.backingfile.Seek(offset, whence)
 }
 
 func (c *Cube) Close() error {
-	if c.tarw != nil {
-		if err := c.tarw.Close(); err != nil {
-			return err
-		}
-	}
-	return c.backingfile.Close()
+	return c.tf.Close()
 }
 
 func (c *Cube) Next() (*Cube, error) {
@@ -171,25 +121,23 @@ func (c *Cube) packHeader() error {
 	if err := enc.Encode(c); err != nil {
 		return err
 	}
-	binary.Write(c, binary.BigEndian, buf.Len())
-	c.Write(buf.Bytes())
+	n, err := c.tf.WriteMetadata("cube", buf.Bytes())
+	if err != nil {
+		return err
+	}
+	c.remaining -= int64(n)
 	return nil
 }
 
 func (c *Cube) unpackHeader() error {
-	var size int
-	if err := binary.Read(c, binary.BigEndian, &size); err != nil {
-		return err
+	md, err := c.tf.ReadMetadata()
+	if md.Name != "cube" {
+		return fmt.Errorf("expected cube metadata, found %s", md.Name)
 	}
-	buf := make([]byte, size)
-	n, err := c.Read(buf)
 	if err != nil {
 		return err
 	}
-	if n != size {
-		return fmt.Errorf("Read the wrong size, found %d instead of %d", n, size)
-	}
-	if err := json.Unmarshal(buf, c); err != nil {
+	if err := json.Unmarshal(md.Data, c); err != nil {
 		return err
 	}
 	return nil
