@@ -97,10 +97,13 @@ func (m *Molecule) Size() int64 {
 func (m *Molecule) Info() os.FileInfo {
 	switch {
 	case m.encrypted_info != nil:
+		log.Debug("using encrypted info")
 		return m.encrypted_info
 	case m.compressed_info != nil:
+		log.Debug("using compressed info")
 		return m.compressed_info
 	default:
+		log.Debug("using orignal info")
 		return m.finfo
 	}
 }
@@ -145,6 +148,7 @@ func (m *Molecule) Compress() error {
 		return err
 	}
 	m.CompressedSize = info.Size()
+	m.compressed_info = info
 	// Close underlying file object.
 	m.fobj.Close()
 	// Replace with tmp file.

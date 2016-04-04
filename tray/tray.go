@@ -95,7 +95,7 @@ func (t *Tray) WriteMolecule(m *molecule.Molecule) (n int, err error) {
 	// Pack molecule into cubes.
 	s := int(m.Size()) // FIXME: This might be a problem when handling large files.
 	written := 0
-	for written != s {
+	for written < s {
 		n, err := t.CurrentCube().WriteMolecule(m)
 		if err != nil {
 			return written + n, err
@@ -106,6 +106,7 @@ func (t *Tray) WriteMolecule(m *molecule.Molecule) (n int, err error) {
 			}
 		}
 		written += n
+		log.Debugf("written: %d", written)
 	}
 
 	return written, nil

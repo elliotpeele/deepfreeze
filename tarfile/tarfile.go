@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"github.com/elliotpeele/deepfreeze/log"
 )
 
 // High level package around reading and writing tar archives.
@@ -142,6 +144,7 @@ func (tf *TarFile) WriteFile(info os.FileInfo, r io.Reader) (n int, err error) {
 		return 0, err
 	}
 
+	log.Debugf("wrote: %d", written)
 	tf.size += written
 
 	return int(written), nil

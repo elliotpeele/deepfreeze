@@ -28,6 +28,7 @@ import (
 
 	"github.com/elliotpeele/deepfreeze/atom"
 	"github.com/elliotpeele/deepfreeze/fileinfo"
+	"github.com/elliotpeele/deepfreeze/log"
 	"github.com/elliotpeele/deepfreeze/molecule"
 	"github.com/elliotpeele/deepfreeze/tarfile"
 	"github.com/satori/go.uuid"
@@ -116,6 +117,7 @@ func (c *Cube) WriteMolecule(m *molecule.Molecule) (n int, err error) {
 	if size > m.Size() {
 		size = m.Size()
 	}
+	log.Debugf("attempting to write %d, info size is %d", size, m.Info().Size())
 	lr := &io.LimitedReader{
 		R: m,
 		N: size,
