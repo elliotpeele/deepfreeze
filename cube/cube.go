@@ -21,11 +21,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"time"
 
 	"github.com/elliotpeele/deepfreeze/atom"
+	"github.com/elliotpeele/deepfreeze/fileinfo"
 	"github.com/elliotpeele/deepfreeze/molecule"
 	"github.com/elliotpeele/deepfreeze/tarfile"
 	"github.com/satori/go.uuid"
@@ -47,7 +49,7 @@ type Cube struct {
 
 	backingfile *os.File
 	tf          *tarfile.TarFile
-	remaining   int64
+	max_size    int64
 }
 
 func New(size int64) (*Cube, error) {
@@ -65,7 +67,7 @@ func New(size int64) (*Cube, error) {
 
 		backingfile: fobj,
 		tf:          tarfile.New(fobj),
-		remaining:   size * 1024 * 1024, // Size in bytes
+		max_size:    size * 1024 * 1024, // Size in bytes
 	}, nil
 }
 
@@ -85,7 +87,44 @@ func Open(name string) (*Cube, error) {
 }
 
 func (c *Cube) WriteMolecule(m *molecule.Molecule) (n int, err error) {
-	return 0, nil
+	// Make sure there is enough space to store some of the file.
+	orig_size := c.tf.Size()
+	if c.max_size-orig_size < 0 {
+		return 0, fmt.Errorf("not enough space left to write file")
+	}
+
+	// Write the molecule header.
+	molHeader, err := m.Header()
+	if err != nil {
+		return 0, err
+	}
+	if _, err := c.tf.WriteMetadata("molecule", molHeader); err != nil {
+		return 0, err
+	}
+
+	// Write the file info for the original file so that it can be restored later.
+	finfo, err := fileinfo.NewFileInfo(m.OrigInfo()).ToJSON()
+	if err != nil {
+		return 0, err
+	}
+	if _, err := c.tf.WriteMetadata("finfo", finfo); err != nil {
+		return 0, err
+	}
+
+	// Write the current file contents.
+	size := c.max_size - c.tf.Size()
+	if size > m.Size() {
+		size = m.Size()
+	}
+	lr := &io.LimitedReader{
+		R: m,
+		N: size,
+	}
+	if _, err := c.tf.WriteFile(m.Info(), lr); err != nil {
+		return 0, err
+	}
+
+	return int(c.tf.Size() - orig_size), nil
 }
 
 func (c *Cube) Close() error {
@@ -105,7 +144,7 @@ func (c *Cube) Next() (*Cube, error) {
 }
 
 func (c *Cube) IsFull() bool {
-	return c.remaining == 0
+	return c.tf.Size() >= c.max_size
 }
 
 func (c *Cube) Freeze() error {
@@ -121,11 +160,10 @@ func (c *Cube) packHeader() error {
 	if err := enc.Encode(c); err != nil {
 		return err
 	}
-	n, err := c.tf.WriteMetadata("cube", buf.Bytes())
+	_, err := c.tf.WriteMetadata("cube", buf.Bytes())
 	if err != nil {
 		return err
 	}
-	c.remaining -= int64(n)
 	return nil
 }
 
