@@ -31,7 +31,7 @@ type Freezer struct {
 }
 
 func New(root string, backupdir string, excludes []string) (*Freezer, error) {
-	t, err := tray.New()
+	t, err := tray.New(backupdir)
 	if err != nil {
 		return nil, err
 	}
@@ -56,18 +56,13 @@ func (f *Freezer) Freeze() error {
 		mols[path] = mol
 	}
 
-	t, err := tray.New()
-	if err != nil {
-		return err
-	}
-
 	for _, mol := range mols {
-		if _, err := t.WriteMolecule(mol); err != nil {
+		if _, err := f.tray.WriteMolecule(mol); err != nil {
 			return err
 		}
 	}
 
-	if err := t.CurrentCube().Close(); err != nil {
+	if err := f.tray.CurrentCube().Close(); err != nil {
 		return err
 	}
 

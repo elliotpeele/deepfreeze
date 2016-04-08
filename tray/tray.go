@@ -36,10 +36,11 @@ type Tray struct {
 	UploadedAt  time.Time    `json:"-"`
 	Cubes       []*cube.Cube `json:"-"`
 	Size        int64        `json:"-"`
+	backupdir   string
 }
 
-func New() (*Tray, error) {
-	c, err := cube.New(1024)
+func New(backupdir string) (*Tray, error) {
+	c, err := cube.New(1024, backupdir)
 	if err != nil {
 		return nil, err
 	}
@@ -53,6 +54,7 @@ func New() (*Tray, error) {
 		Cubes: []*cube.Cube{
 			c,
 		},
+		backupdir: backupdir,
 	}
 	c.TrayId = t.Id
 	if err := t.packHeader(); err != nil {

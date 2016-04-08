@@ -49,13 +49,14 @@ type Cube struct {
 	Size        int64                `json:"size"`
 
 	backingfile *os.File
+	backupdir   string
 	tf          *tarfile.TarFile
 	max_size    int64
 }
 
-func New(size int64) (*Cube, error) {
+func New(size int64, backupdir string) (*Cube, error) {
 	id := uuid.NewV4().String()
-	fobj, err := ioutil.TempFile("", id)
+	fobj, err := ioutil.TempFile(backupdir, id)
 	if err != nil {
 		return nil, err
 	}
@@ -67,6 +68,7 @@ func New(size int64) (*Cube, error) {
 		Size:      0,
 
 		backingfile: fobj,
+		backupdir:   backupdir,
 		tf:          tarfile.New(fobj),
 		max_size:    size * 1024 * 1024, // Size in bytes
 	}, nil
@@ -135,7 +137,7 @@ func (c *Cube) Close() error {
 
 func (c *Cube) Next() (*Cube, error) {
 	if c.Child == nil {
-		c2, err := New(c.Size)
+		c2, err := New(c.Size, c.backupdir)
 		if err != nil {
 			return nil, err
 		}
