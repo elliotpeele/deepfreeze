@@ -60,6 +60,9 @@ func (f *Freezer) Freeze() error {
 		if _, err := f.tray.WriteMolecule(mol); err != nil {
 			return err
 		}
+		if err := mol.Close(); err != nil {
+			return err
+		}
 	}
 
 	if err := f.tray.CurrentCube().Close(); err != nil {
