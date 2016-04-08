@@ -26,16 +26,17 @@ import (
 )
 
 type Tray struct {
-	Id          string       `json:"tray_id"`
-	CreatedAt   time.Time    `json:"created_at"`
-	IsUploaded  bool         `json:"-"`
-	Hash        string       `json:"-"`
-	Full        bool         `json:"full"`
-	Incremental bool         `json:"incremental"`
-	Parent      *Tray        `json:"-"`
-	UploadedAt  time.Time    `json:"-"`
-	Cubes       []*cube.Cube `json:"-"`
-	Size        int64        `json:"-"`
+	Id          string    `json:"tray_id"`
+	CreatedAt   time.Time `json:"created_at"`
+	IsUploaded  bool      `json:"-"`
+	Hash        string    `json:"-"`
+	Full        bool      `json:"full"`
+	Incremental bool      `json:"incremental"`
+	Parent      *Tray     `json:"-"`
+	UploadedAt  time.Time `json:"-"`
+	Size        int64     `json:"-"`
+	rootCube    *cube.Cube
+	curCube     *cube.Cube
 	backupdir   string
 }
 
@@ -51,10 +52,9 @@ func New(backupdir string) (*Tray, error) {
 		Incremental: false,
 		Parent:      nil,
 		Size:        0,
-		Cubes: []*cube.Cube{
-			c,
-		},
-		backupdir: backupdir,
+		rootCube:    c,
+		curCube:     c,
+		backupdir:   backupdir,
 	}
 	c.TrayId = t.Id
 	if err := t.packHeader(); err != nil {
@@ -64,18 +64,18 @@ func New(backupdir string) (*Tray, error) {
 }
 
 func (t *Tray) CurrentCube() *cube.Cube {
-	return t.Cubes[len(t.Cubes)-1]
+	return t.curCube
 }
 
 func (t *Tray) NextCube() (*cube.Cube, error) {
-	if err := t.CurrentCube().Close(); err != nil {
+	if err := t.curCube.Close(); err != nil {
 		return nil, err
 	}
-	c, err := t.CurrentCube().Next()
+	c, err := t.curCube.Next()
 	if err != nil {
 		return nil, err
 	}
-	t.Cubes = append(t.Cubes, c)
+	t.curCube = c
 	return c, nil
 }
 
