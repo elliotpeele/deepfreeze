@@ -17,6 +17,7 @@
 package molecule
 
 import (
+	"compress/gzip"
 	"io"
 	"io/ioutil"
 	"os"
@@ -25,7 +26,6 @@ import (
 	"github.com/elliotpeele/deepfreeze/atom"
 	"github.com/elliotpeele/deepfreeze/log"
 	"github.com/satori/go.uuid"
-	"github.com/ulikunitz/xz"
 )
 
 type Molecule struct {
@@ -130,7 +130,10 @@ func (m *Molecule) Compress() error {
 		return err
 	}
 	// Compress orignal file.
-	w := xz.NewWriter(tmpf)
+	w, err := gzip.NewWriterLevel(tmpf, gzip.BestSpeed)
+	if err != nil {
+		return err
+	}
 	if _, err := io.Copy(w, m.fobj); err != nil {
 		return err
 	}
