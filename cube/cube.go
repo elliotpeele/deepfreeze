@@ -17,7 +17,6 @@
 package cube
 
 import (
-	"archive/tar"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -52,6 +51,7 @@ type Cube struct {
 	backupdir   string
 	tf          *tarfile.TarFile
 	max_size    int64
+	size        int64
 }
 
 func New(size int64, backupdir string) (*Cube, error) {
@@ -71,6 +71,7 @@ func New(size int64, backupdir string) (*Cube, error) {
 		backupdir:   backupdir,
 		tf:          tarfile.New(fobj),
 		max_size:    size * 1024 * 1024, // Size in bytes
+		size:        size,
 	}, nil
 }
 
@@ -90,9 +91,11 @@ func Open(name string) (*Cube, error) {
 }
 
 func (c *Cube) WriteMolecule(m *molecule.Molecule) (n int, err error) {
+	cur := c
+
 	// Make sure there is enough space to store some of the file.
-	orig_size := c.tf.Size()
-	if c.max_size-orig_size < 0 {
+	orig_size := cur.tf.Size()
+	if cur.max_size-orig_size < 0 {
 		return 0, fmt.Errorf("not enough space left to write file")
 	}
 
@@ -101,7 +104,7 @@ func (c *Cube) WriteMolecule(m *molecule.Molecule) (n int, err error) {
 	if err != nil {
 		return 0, err
 	}
-	if _, err := c.tf.WriteMetadata("molecule", molHeader); err != nil {
+	if _, err := cur.tf.WriteMetadata("molecule", molHeader); err != nil {
 		return 0, err
 	}
 
@@ -110,34 +113,81 @@ func (c *Cube) WriteMolecule(m *molecule.Molecule) (n int, err error) {
 	if err != nil {
 		return 0, err
 	}
-	if _, err := c.tf.WriteMetadata("finfo", finfo); err != nil {
+	if _, err := cur.tf.WriteMetadata("finfo", finfo); err != nil {
+		return 0, err
+	}
+
+	// Write the file info for the backing file.
+	bfinfo, err := fileinfo.NewFileInfo(m.Info()).ToJSON()
+	if err != nil {
+		return 0, err
+	}
+	if _, err := cur.tf.WriteMetadata("bfinfo", bfinfo); err != nil {
 		return 0, err
 	}
 
 	// Write the current file contents.
-	size := c.max_size - c.tf.Size()
-	if size > m.Size() {
-		size = m.Size()
-	}
-	log.Debugf("attempting to write %d, info size is %d", size, m.Info().Size())
-	lr := &io.LimitedReader{
-		R: m,
-		N: size,
-	}
-	if _, err := c.tf.WriteFile(m.Info(), lr); err != nil {
-		return 0, err
+	written := int64(0)
+	for m.Size() > 0 {
+		size := cur.max_size - cur.tf.Size()
+		if size > m.Size() {
+			size = m.Size()
+		}
+
+		// Create a new atom
+		a := m.NewAtom(cur.Id, size)
+
+		// Write the atom metadata
+		atomHeader, err := a.Header()
+		if err != nil {
+			return 0, err
+		}
+		if _, err := cur.tf.WriteMetadata("atom", atomHeader); err != nil {
+			return 0, err
+		}
+
+		log.Debugf("attempting to write %d, info size is %d", size, m.Info().Size())
+		lr := &io.LimitedReader{
+			R: m,
+			N: size,
+		}
+		info := &fileinfo.FileInfo{
+			Name: a.Id,
+			Size: size,
+		}
+		if _, err := cur.tf.WriteFile(info.FileInfo(), lr); err != nil {
+			return 0, err
+		}
+
+		written += size
+
+		if cur.IsFull() {
+			log.Debug("moving to next cube")
+			next, err := cur.Next()
+			if err != nil {
+				return int(written), err
+			}
+			if err := cur.Close(); err != nil {
+				return 0, err
+			}
+			cur = next
+			log.Debugf("cur: %v, next: %v", cur, next)
+		}
+
+		log.Debugf("written: %d", written)
 	}
 
 	return int(c.tf.Size() - orig_size), nil
 }
 
 func (c *Cube) Close() error {
+	// FIXME: add header to front of archive
 	return c.tf.Close()
 }
 
 func (c *Cube) Next() (*Cube, error) {
 	if c.Child == nil {
-		c2, err := New(c.Size, c.backupdir)
+		c2, err := New(c.size, c.backupdir)
 		if err != nil {
 			return nil, err
 		}
@@ -183,22 +233,4 @@ func (c *Cube) unpackHeader() error {
 		return err
 	}
 	return nil
-}
-
-// Get the size that a tar header would take up given a set of file information.
-func (c *Cube) getTarHeaderSize(info os.FileInfo) (int64, error) {
-	// Pack the file info into a header buffer to see if it fits in the cube.
-	buf := new(bytes.Buffer)
-	tw := tar.NewWriter(buf)
-	header, err := tar.FileInfoHeader(info, "")
-	if err != nil {
-		return 0, err
-	}
-	if err := tw.WriteHeader(header); err != nil {
-		return 0, err
-	}
-	if err := tw.Flush(); err != nil {
-		return 0, err
-	}
-	return int64(buf.Len()), nil
 }

@@ -34,7 +34,7 @@ type Atom struct {
 	Size       int64     `json:"size"`
 }
 
-func New(moleculeId string, cubeId string) (*Atom, error) {
+func New(moleculeId string, cubeId string, size int64) *Atom {
 	return &Atom{
 		Id:         uuid.NewV4().String(),
 		MoleculeId: moleculeId,
@@ -43,10 +43,10 @@ func New(moleculeId string, cubeId string) (*Atom, error) {
 		CreatedAt:  time.Now(),
 		Child:      nil,
 		Delete:     false,
-		Size:       0,
-	}, nil
+		Size:       size,
+	}
 }
 
-func (a *Atom) Header() (string, error) {
-	return "", nil
+func (a *Atom) Header() ([]byte, error) {
+	return []byte{}, nil
 }

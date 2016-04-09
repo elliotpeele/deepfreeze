@@ -42,6 +42,7 @@ type Molecule struct {
 	compressed_info os.FileInfo
 	encrypted_info  os.FileInfo
 	fobj            *os.File
+	read_size       int64
 }
 
 func New(path string, hash string) (*Molecule, error) {
@@ -70,7 +71,9 @@ func (m *Molecule) Open() error {
 }
 
 func (m *Molecule) Read(p []byte) (n int, err error) {
-	return m.fobj.Read(p)
+	n, err = m.fobj.Read(p)
+	m.read_size += int64(n)
+	return
 }
 
 func (m *Molecule) Seek(offset int64, whence int) (int64, error) {
@@ -84,11 +87,11 @@ func (m *Molecule) Close() error {
 func (m *Molecule) Size() int64 {
 	switch {
 	case m.EncryptedSize != 0:
-		return m.EncryptedSize
+		return m.EncryptedSize - m.read_size
 	case m.CompressedSize != 0:
-		return m.CompressedSize
+		return m.CompressedSize - m.read_size
 	case m.OriginalSize != 0:
-		return m.OriginalSize
+		return m.OriginalSize - m.read_size
 	default:
 		return -1
 	}
@@ -114,6 +117,12 @@ func (m *Molecule) OrigInfo() os.FileInfo {
 
 func (m *Molecule) Header() ([]byte, error) {
 	return []byte{}, nil
+}
+
+func (m *Molecule) NewAtom(cubeId string, size int64) *atom.Atom {
+	a := atom.New(m.Id, cubeId, size)
+	m.Atoms = append(m.Atoms, a)
+	return a
 }
 
 func (m *Molecule) Encrypt() error {

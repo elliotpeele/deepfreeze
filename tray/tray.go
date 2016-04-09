@@ -53,7 +53,6 @@ func New(backupdir string) (*Tray, error) {
 		Parent:      nil,
 		Size:        0,
 		rootCube:    c,
-		curCube:     c,
 		backupdir:   backupdir,
 	}
 	c.TrayId = t.Id
@@ -64,19 +63,11 @@ func New(backupdir string) (*Tray, error) {
 }
 
 func (t *Tray) CurrentCube() *cube.Cube {
-	return t.curCube
-}
-
-func (t *Tray) NextCube() (*cube.Cube, error) {
-	if err := t.curCube.Close(); err != nil {
-		return nil, err
+	cur := t.rootCube
+	for cur.Child != nil {
+		cur = cur.Child
 	}
-	c, err := t.curCube.Next()
-	if err != nil {
-		return nil, err
-	}
-	t.curCube = c
-	return c, nil
+	return cur
 }
 
 func (t *Tray) WriteMolecule(m *molecule.Molecule) (n int, err error) {
@@ -95,23 +86,7 @@ func (t *Tray) WriteMolecule(m *molecule.Molecule) (n int, err error) {
 	}
 
 	// Pack molecule into cubes.
-	s := int(m.Size()) // FIXME: This might be a problem when handling large files.
-	written := 0
-	for written < s {
-		n, err := t.CurrentCube().WriteMolecule(m)
-		if err != nil {
-			return written + n, err
-		}
-		if t.CurrentCube().IsFull() {
-			if _, err := t.NextCube(); err != nil {
-				return written + n, err
-			}
-		}
-		written += n
-		log.Debugf("written: %d", written)
-	}
-
-	return written, nil
+	return t.CurrentCube().WriteMolecule(m)
 }
 
 func (t *Tray) Upload() error {

@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"github.com/elliotpeele/deepfreeze/indexer"
+	"github.com/elliotpeele/deepfreeze/log"
 	"github.com/elliotpeele/deepfreeze/molecule"
 	"github.com/elliotpeele/deepfreeze/tray"
 )
@@ -65,6 +66,7 @@ func (f *Freezer) Freeze() error {
 		}
 	}
 
+	log.Debugf("closing current cube")
 	if err := f.tray.CurrentCube().Close(); err != nil {
 		return err
 	}
