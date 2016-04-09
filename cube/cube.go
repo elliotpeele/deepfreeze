@@ -17,7 +17,6 @@
 package cube
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -30,6 +29,7 @@ import (
 	"github.com/elliotpeele/deepfreeze/log"
 	"github.com/elliotpeele/deepfreeze/molecule"
 	"github.com/elliotpeele/deepfreeze/tarfile"
+	"github.com/elliotpeele/deepfreeze/utils"
 	"github.com/satori/go.uuid"
 )
 
@@ -209,13 +209,11 @@ func (c *Cube) Freeze() error {
 }
 
 func (c *Cube) packHeader() error {
-	buf := &bytes.Buffer{}
-	enc := json.NewEncoder(buf)
-	if err := enc.Encode(c); err != nil {
+	b, err := utils.ToJSON(c)
+	if err != nil {
 		return err
 	}
-	_, err := c.tf.WriteMetadata("cube", buf.Bytes())
-	if err != nil {
+	if _, err := c.tf.WriteMetadata("cube", b); err != nil {
 		return err
 	}
 	return nil

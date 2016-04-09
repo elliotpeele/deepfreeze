@@ -25,6 +25,7 @@ import (
 
 	"github.com/elliotpeele/deepfreeze/atom"
 	"github.com/elliotpeele/deepfreeze/log"
+	"github.com/elliotpeele/deepfreeze/utils"
 	"github.com/satori/go.uuid"
 )
 
@@ -116,7 +117,7 @@ func (m *Molecule) OrigInfo() os.FileInfo {
 }
 
 func (m *Molecule) Header() ([]byte, error) {
-	return []byte{}, nil
+	return utils.ToJSON(m)
 }
 
 func (m *Molecule) NewAtom(cubeId string, size int64) *atom.Atom {

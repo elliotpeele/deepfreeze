@@ -17,10 +17,11 @@
 package fileinfo
 
 import (
-	"bytes"
 	"encoding/json"
 	"os"
 	"time"
+
+	"github.com/elliotpeele/deepfreeze/utils"
 )
 
 type FileInfo struct {
@@ -61,12 +62,7 @@ func ParseFileInfo(buf []byte) (*FileInfo, error) {
 }
 
 func (fi *FileInfo) ToJSON() ([]byte, error) {
-	buf := &bytes.Buffer{}
-	enc := json.NewEncoder(buf)
-	if err := enc.Encode(fi); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return utils.ToJSON(fi)
 }
 
 func (fi *FileInfo) FileInfo() os.FileInfo {

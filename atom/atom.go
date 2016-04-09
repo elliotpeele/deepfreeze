@@ -19,6 +19,7 @@ package atom
 import (
 	"time"
 
+	"github.com/elliotpeele/deepfreeze/utils"
 	"github.com/satori/go.uuid"
 )
 
@@ -48,5 +49,5 @@ func New(moleculeId string, cubeId string, size int64) *Atom {
 }
 
 func (a *Atom) Header() ([]byte, error) {
-	return []byte{}, nil
+	return utils.ToJSON(a)
 }
