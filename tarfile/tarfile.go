@@ -86,6 +86,13 @@ func (tf *TarFile) Close() error {
 	return tf.w.Close()
 }
 
+func (tf *TarFile) Flush() error {
+	if tf.w == nil {
+		return writeError
+	}
+	return tf.w.Flush()
+}
+
 func (tf *TarFile) Size() int64 {
 	return tf.size
 }
