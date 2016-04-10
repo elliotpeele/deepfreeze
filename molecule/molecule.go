@@ -30,20 +30,19 @@ import (
 )
 
 type Molecule struct {
-	Id             string       `json:"id"`
-	Path           string       `json:"path"`
-	Hash           string       `json:"hash"`
-	Atoms          []*atom.Atom `json:"-"`
-	CreatedAt      time.Time    `json:"created_at"`
-	OriginalSize   int64        `json:"size"`
-	CompressedSize int64        `json:"compressed_size"`
-	EncryptedSize  int64        `json:"encrypted_size"`
+	Id           string       `json:"id"`
+	Path         string       `json:"path"`
+	Hash         string       `json:"hash"`
+	Atoms        []*atom.Atom `json:"-"`
+	CreatedAt    time.Time    `json:"created_at"`
+	OriginalSize int64        `json:"size"`
 
-	finfo           os.FileInfo
-	compressed_info os.FileInfo
-	encrypted_info  os.FileInfo
+	cur_size        int64
+	orig_info       os.FileInfo
+	cur_info        os.FileInfo
 	fobj            *os.File
 	read_size       int64
+	delete_on_close bool
 }
 
 func New(path string, hash string) (*Molecule, error) {
@@ -52,12 +51,14 @@ func New(path string, hash string) (*Molecule, error) {
 		return nil, err
 	}
 	return &Molecule{
-		Id:           uuid.NewV4().String(),
-		Path:         path,
-		Hash:         hash,
-		CreatedAt:    time.Now(),
-		OriginalSize: info.Size(),
-		finfo:        info,
+		Id:              uuid.NewV4().String(),
+		Path:            path,
+		Hash:            hash,
+		CreatedAt:       time.Now(),
+		OriginalSize:    info.Size(),
+		orig_info:       info,
+		cur_info:        info,
+		delete_on_close: false,
 	}, nil
 }
 
@@ -82,38 +83,28 @@ func (m *Molecule) Seek(offset int64, whence int) (int64, error) {
 }
 
 func (m *Molecule) Close() error {
-	return m.fobj.Close()
+	if err := m.fobj.Close(); err != nil {
+		return err
+	}
+	if m.delete_on_close {
+		log.Debugf("deleting %s", m.fobj.Name())
+		if err := os.Remove(m.fobj.Name()); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (m *Molecule) Size() int64 {
-	switch {
-	case m.EncryptedSize != 0:
-		return m.EncryptedSize - m.read_size
-	case m.CompressedSize != 0:
-		return m.CompressedSize - m.read_size
-	case m.OriginalSize != 0:
-		return m.OriginalSize - m.read_size
-	default:
-		return -1
-	}
+	return m.cur_size - m.read_size
 }
 
 func (m *Molecule) Info() os.FileInfo {
-	switch {
-	case m.encrypted_info != nil:
-		log.Debug("using encrypted info")
-		return m.encrypted_info
-	case m.compressed_info != nil:
-		log.Debug("using compressed info")
-		return m.compressed_info
-	default:
-		log.Debug("using orignal info")
-		return m.finfo
-	}
+	return m.cur_info
 }
 
 func (m *Molecule) OrigInfo() os.FileInfo {
-	return m.finfo
+	return m.orig_info
 }
 
 func (m *Molecule) Header() ([]byte, error) {
@@ -160,11 +151,13 @@ func (m *Molecule) Compress() error {
 	if err != nil {
 		return err
 	}
-	m.CompressedSize = info.Size()
-	m.compressed_info = info
+	m.cur_size = info.Size()
+	m.cur_info = info
 	// Close underlying file object.
 	m.fobj.Close()
 	// Replace with tmp file.
 	m.fobj = tmpf
+	// Mark tmp file for deletion.
+	m.delete_on_close = true
 	return nil
 }
