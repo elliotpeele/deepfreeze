@@ -266,6 +266,7 @@ func (c *Cube) Next() (*Cube, error) {
 		}
 		c.Child = c2
 		c.Child.Parent = c
+		c.Child.TrayId = c.TrayId
 	}
 	return c.Child, nil
 }
