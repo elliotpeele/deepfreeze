@@ -17,6 +17,7 @@
 package cube
 
 import (
+	"crypto/sha512"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -41,6 +42,8 @@ type Cube struct {
 	Hash        string               `json:"hash"`
 	AWSLocation string               `json:"aws_location"`
 	UploadedAt  time.Time            `json:"uploaded_at"`
+	ParentId    string               `json:"parent_id"`
+	ChildId     string               `json:"child_id"`
 	Parent      *Cube                `json:"-"`
 	Child       *Cube                `json:"-"`
 	Molecules   []*molecule.Molecule `json:"-"`
@@ -181,8 +184,78 @@ func (c *Cube) WriteMolecule(m *molecule.Molecule) (n int, err error) {
 }
 
 func (c *Cube) Close() error {
-	// FIXME: add header to front of archive
-	return c.tf.Close()
+	// Copy data to cube structure.
+	if c.Parent != nil {
+		c.ParentId = c.Parent.Id
+	}
+	if c.Child != nil {
+		c.ChildId = c.ChildId
+	}
+	c.Size = c.tf.Size()
+
+	// Close the tarfile abstraction.
+	if err := c.tf.Close(); err != nil {
+		return err
+	}
+
+	// Rewind backing file so that it can be hashed.
+	if _, err := c.backingfile.Seek(0, 0); err != nil {
+		return err
+	}
+	// Hash cube.
+	h := sha512.New()
+	if _, err := io.Copy(h, c.backingfile); err != nil {
+		return err
+	}
+	c.Hash = fmt.Sprintf("%x", h.Sum(nil))
+
+	// Create tmp file for writing cube header.
+	tmpf, err := ioutil.TempFile(c.backupdir, "deepfreeze")
+	if err != nil {
+		return err
+	}
+
+	// Serialize cube.
+	data, err := utils.ToJSON(c)
+	if err != nil {
+		return err
+	}
+
+	// Write out cube header to tmp file.
+	tf := tarfile.New(tmpf)
+	if _, err := tf.WriteMetadata("cube", data); err != nil {
+		return err
+	}
+	if err := tf.Flush(); err != nil {
+		return err
+	}
+
+	// Rewind the backingfile so that it can be copied.
+	if _, err := c.backingfile.Seek(0, 0); err != nil {
+		return err
+	}
+
+	// Copy the backingfile into the tmp file.
+	if _, err := io.Copy(tmpf, c.backingfile); err != nil {
+		return err
+	}
+
+	// Close the tmp file.
+	if err := tmpf.Close(); err != nil {
+		return err
+	}
+
+	// Close the backingfile.
+	if err := c.backingfile.Close(); err != nil {
+		return err
+	}
+
+	// Rename tmp file to backing file.
+	if err := os.Rename(tmpf.Name(), c.backingfile.Name()); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (c *Cube) Next() (*Cube, error) {
