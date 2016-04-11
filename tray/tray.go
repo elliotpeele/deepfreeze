@@ -82,7 +82,7 @@ func (t *Tray) CurrentCube() *cube.Cube {
 }
 
 func (t *Tray) WriteMolecule(m *molecule.Molecule) (n int, err error) {
-	log.Debugf("Backing up %s", m.Path)
+	log.Infof("Backing up %s", m.Path)
 	// Open the backend file, hopefully it still exists.
 	if err := m.Open(); err != nil {
 		return 0, err

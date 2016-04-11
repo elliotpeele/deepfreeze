@@ -46,6 +46,7 @@ func New(root string, backupdir string, excludes []string) (*Freezer, error) {
 }
 
 func (f *Freezer) Freeze() error {
+	log.Info("indexing files")
 	files, err := f.indexer.Index()
 	if err != nil {
 		return err
