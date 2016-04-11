@@ -22,22 +22,36 @@ import (
 	"github.com/elliotpeele/deepfreeze/cube"
 	"github.com/elliotpeele/deepfreeze/log"
 	"github.com/elliotpeele/deepfreeze/molecule"
+	"github.com/elliotpeele/deepfreeze/utils"
 	"github.com/satori/go.uuid"
 )
 
 type Tray struct {
-	Id          string    `json:"tray_id"`
-	CreatedAt   time.Time `json:"created_at"`
-	IsUploaded  bool      `json:"-"`
-	Hash        string    `json:"-"`
-	Full        bool      `json:"full"`
-	Incremental bool      `json:"incremental"`
-	Parent      *Tray     `json:"-"`
-	UploadedAt  time.Time `json:"-"`
-	Size        int64     `json:"-"`
+	Id          string       `json:"tray_id"`
+	CreatedAt   time.Time    `json:"created_at"`
+	IsUploaded  bool         `json:"-"`
+	Hash        string       `json:"-"`
+	Full        bool         `json:"full"`
+	Incremental bool         `json:"incremental"`
+	Parent      *Tray        `json:"-"`
+	UploadedAt  time.Time    `json:"-"`
+	Size        int64        `json:"size"`
+	Cubes       []*cube_data `json:"cubes"`
 	rootCube    *cube.Cube
 	curCube     *cube.Cube
 	backupdir   string
+}
+
+type cube_data struct {
+	Id    string       `json:"cube_id"`
+	Hash  string       `json:"hash"`
+	Files []*file_data `json:"files"`
+}
+
+type file_data struct {
+	Id   string `json:"file_id"`
+	Hash string `json:"hash"`
+	Path string `json:"path"`
 }
 
 func New(backupdir string) (*Tray, error) {
@@ -56,9 +70,6 @@ func New(backupdir string) (*Tray, error) {
 		backupdir:   backupdir,
 	}
 	c.TrayId = t.Id
-	if err := t.packHeader(); err != nil {
-		return nil, err
-	}
 	return t, nil
 }
 
@@ -94,8 +105,29 @@ func (t *Tray) Upload() error {
 }
 
 // Write header to current cube.
-func (t *Tray) packHeader() error {
-	return nil
+func (t *Tray) Header() ([]byte, error) {
+	log.Debug("packing tray header")
+	cube := t.rootCube
+	for cube != nil {
+		log.Debugf("packing cube %s", cube.Id)
+		c := &cube_data{
+			Id:   cube.Id,
+			Hash: cube.Hash,
+		}
+		for _, mol := range cube.Molecules {
+			f := &file_data{
+				Id:   mol.Id,
+				Hash: mol.Hash,
+				Path: mol.Path,
+			}
+			log.Debugf("packing file %s", f.Id)
+			c.Files = append(c.Files, f)
+		}
+		t.Cubes = append(t.Cubes, c)
+		cube = cube.Child
+	}
+
+	return utils.ToJSON(t)
 }
 
 // Read header from current cube.

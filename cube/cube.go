@@ -23,9 +23,9 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"time"
 
-	"github.com/elliotpeele/deepfreeze/atom"
 	"github.com/elliotpeele/deepfreeze/fileinfo"
 	"github.com/elliotpeele/deepfreeze/log"
 	"github.com/elliotpeele/deepfreeze/molecule"
@@ -47,7 +47,6 @@ type Cube struct {
 	Parent      *Cube                `json:"-"`
 	Child       *Cube                `json:"-"`
 	Molecules   []*molecule.Molecule `json:"-"`
-	Atoms       []*atom.Atom         `json:"-"`
 	Size        int64                `json:"size"`
 
 	backingfile *os.File
@@ -59,7 +58,7 @@ type Cube struct {
 
 func New(size int64, backupdir string) (*Cube, error) {
 	id := uuid.NewV4().String()
-	fobj, err := ioutil.TempFile(backupdir, id)
+	fobj, err := os.Create(path.Join(backupdir, id))
 	if err != nil {
 		return nil, err
 	}
@@ -95,6 +94,9 @@ func Open(name string) (*Cube, error) {
 
 func (c *Cube) WriteMolecule(m *molecule.Molecule) (n int, err error) {
 	cur := c
+
+	// Add molecule to cube.
+	c.Molecules = append(c.Molecules, m)
 
 	// Make sure there is enough space to store some of the file.
 	orig_size := cur.tf.Size()

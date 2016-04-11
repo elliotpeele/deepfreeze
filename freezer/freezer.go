@@ -18,6 +18,8 @@ package freezer
 
 import (
 	"fmt"
+	"os"
+	"path"
 
 	"github.com/elliotpeele/deepfreeze/indexer"
 	"github.com/elliotpeele/deepfreeze/log"
@@ -71,5 +73,20 @@ func (f *Freezer) Freeze() error {
 		return err
 	}
 
+	// Write out tray metadata
+	file, err := os.Create(path.Join(f.backupdir, fmt.Sprintf("tray-%s", f.tray.Id)))
+	if err != nil {
+		return err
+	}
+	header, err := f.tray.Header()
+	if err != nil {
+		return err
+	}
+	if _, err := file.Write(header); err != nil {
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
 	return nil
 }
