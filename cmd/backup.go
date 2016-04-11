@@ -15,8 +15,6 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/elliotpeele/deepfreeze/freezer"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -33,9 +31,6 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// TODO: Work your own magic here
-		fmt.Println("backup called")
-
 		root, err := cmd.PersistentFlags().GetString("root")
 		if err != nil {
 			return err
