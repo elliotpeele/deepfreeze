@@ -80,7 +80,7 @@ func digester(done <-chan struct{}, paths <-chan string, c chan<- result) {
 }
 
 // HashAll reads all the files in the file tree rooted at root and returns a map
-// from file path to the MD5 sum of the file's contents.  If the directory walk
+// from file path to the SHA512 sum of the file's contents.  If the directory walk
 // fails or any read operation fails, HashAll returns an error.  In that case,
 // HashAll does not wait for inflight read operations to complete.
 func HashAll(root string) (map[string][sha512.Size]byte, error) {
