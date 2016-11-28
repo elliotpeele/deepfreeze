@@ -27,12 +27,14 @@ import (
 	"github.com/elliotpeele/deepfreeze/tray"
 )
 
+// High level backup structure.
 type Freezer struct {
 	tray      *tray.Tray
 	indexer   *indexer.Indexer
 	backupdir string
 }
 
+// Create a new freezer instance.
 func New(root string, backupdir string, excludes []string) (*Freezer, error) {
 	t, err := tray.New(backupdir)
 	if err != nil {
@@ -45,11 +47,15 @@ func New(root string, backupdir string, excludes []string) (*Freezer, error) {
 	}, nil
 }
 
+// Create a backup from a diretory tree.
 func (f *Freezer) Freeze() error {
+	// Index the filesystem.
 	files, err := f.indexer.Index()
 	if err != nil {
 		return err
 	}
+
+	// Map files into molecules.
 	mols := make(map[string]*molecule.Molecule)
 	for path, hash := range files {
 		mol, err := molecule.New(path, fmt.Sprintf("%x", hash))
@@ -59,6 +65,8 @@ func (f *Freezer) Freeze() error {
 		mols[path] = mol
 	}
 
+	// Populate the trays with molecules. This is where the actual file gets
+	// read from the filesystem and appeneded to the backing store.
 	for _, mol := range mols {
 		if _, err := f.tray.WriteMolecule(mol); err != nil {
 			return err
@@ -68,12 +76,14 @@ func (f *Freezer) Freeze() error {
 		}
 	}
 
+	// Close the last cube in the tray. The other cubes get closed in the
+	// process of writing out the molecules.
 	log.Debugf("closing current cube")
 	if err := f.tray.CurrentCube().Close(); err != nil {
 		return err
 	}
 
-	// Write out tray metadata
+	// Write out tray metadata.
 	file, err := os.Create(path.Join(f.backupdir, fmt.Sprintf("tray-%s", f.tray.Id)))
 	if err != nil {
 		return err

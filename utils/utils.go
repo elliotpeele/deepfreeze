@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 )
 
+// Serialize object to JSON.
 func ToJSON(obj interface{}) ([]byte, error) {
 	buf := &bytes.Buffer{}
 	enc := json.NewEncoder(buf)

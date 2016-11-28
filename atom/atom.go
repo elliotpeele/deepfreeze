@@ -23,6 +23,7 @@ import (
 	"github.com/satori/go.uuid"
 )
 
+// Container for chunks of backedup files. May refer to all or part of a file.
 type Atom struct {
 	Id         string    `json:"id"`
 	MoleculeId string    `json:"molecule_id"`
@@ -35,6 +36,7 @@ type Atom struct {
 	Size       int64     `json:"size"`
 }
 
+// Create a new atom.
 func New(moleculeId string, cubeId string, size int64) *Atom {
 	return &Atom{
 		Id:         uuid.NewV4().String(),
@@ -48,6 +50,7 @@ func New(moleculeId string, cubeId string, size int64) *Atom {
 	}
 }
 
+// Serialize the atom header.
 func (a *Atom) Header() ([]byte, error) {
 	return utils.ToJSON(a)
 }

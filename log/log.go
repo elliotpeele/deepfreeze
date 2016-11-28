@@ -22,13 +22,14 @@ import (
 	"github.com/op/go-logging"
 )
 
-var log = logging.MustGetLogger("example")
+var log = logging.MustGetLogger("deepfreeze")
 
 var format = logging.MustStringFormatter(
 	`%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`,
 )
 
-func SetupLogging(cmdOut io.Writer, logFile io.Writer, debug bool, cmddebug bool) {
+// Configure logging.
+func SetupLogging(cmdOut io.Writer, logFile io.Writer, cmddebug bool, debug bool) {
 	cmdBackend := logging.NewLogBackend(cmdOut, "", 0)
 	cmdLevel := logging.AddModuleLevel(cmdBackend)
 	if !cmddebug {
@@ -102,10 +103,12 @@ func Warningf(format string, args ...interface{}) {
 	log.Warningf(format, args...)
 }
 
+// Warningf logs a message using WARNING as log level.
 func Warn(args ...interface{}) {
 	Warning(args...)
 }
 
+// Warningf logs a message using WARNING as log level.
 func Warnf(format string, args ...interface{}) {
 	Warningf(format, args...)
 }

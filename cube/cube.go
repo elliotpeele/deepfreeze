@@ -34,7 +34,8 @@ import (
 	"github.com/satori/go.uuid"
 )
 
-// Cubes are the actual files that get uploaded to Glacier.
+// Cubes are the actual files that get uploaded to Glacier. These
+// contain entire or parts of backed up files.
 type Cube struct {
 	Id          string               `json:"id"`
 	TrayId      string               `json:"tray_id"`
@@ -56,6 +57,7 @@ type Cube struct {
 	size        int64
 }
 
+// Create a new cube isntance.
 func New(size int64, backupdir string) (*Cube, error) {
 	id := uuid.NewV4().String()
 	fobj, err := os.Create(path.Join(backupdir, id))
@@ -77,6 +79,7 @@ func New(size int64, backupdir string) (*Cube, error) {
 	}, nil
 }
 
+// Create a cube instance from backing store file.
 func Open(name string) (*Cube, error) {
 	fobj, err := os.Open(name)
 	if err != nil {
@@ -92,6 +95,7 @@ func Open(name string) (*Cube, error) {
 	return c, nil
 }
 
+// Write a molecule to the cube backing store.
 func (c *Cube) WriteMolecule(m *molecule.Molecule) (n int, err error) {
 	cur := c
 
@@ -185,6 +189,7 @@ func (c *Cube) WriteMolecule(m *molecule.Molecule) (n int, err error) {
 	return int(c.tf.Size() - orig_size), nil
 }
 
+// Close and finalize the cube.
 func (c *Cube) Close() error {
 	// Copy data to cube structure.
 	if c.Parent != nil {
@@ -260,6 +265,7 @@ func (c *Cube) Close() error {
 	return nil
 }
 
+// Create and return the next cube instance when this one is full.
 func (c *Cube) Next() (*Cube, error) {
 	if c.Child == nil {
 		c2, err := New(c.size, c.backupdir)
@@ -273,10 +279,12 @@ func (c *Cube) Next() (*Cube, error) {
 	return c.Child, nil
 }
 
+// Check if the cube has reached the max size.
 func (c *Cube) IsFull() bool {
 	return c.tf.Size() >= c.max_size
 }
 
+// Freeze the current cube.
 func (c *Cube) Freeze() error {
 	if err := c.packHeader(); err != nil {
 		return err

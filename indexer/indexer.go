@@ -22,11 +22,13 @@ import (
 	"github.com/elliotpeele/deepfreeze/log"
 )
 
+// File system indexer.
 type Indexer struct {
 	excludes []string
 	root     string
 }
 
+// Create a new indexer instance.
 func New(root string, excludes []string) *Indexer {
 	return &Indexer{
 		root:     root,
@@ -34,6 +36,7 @@ func New(root string, excludes []string) *Indexer {
 	}
 }
 
+// Index filesystem with content hashes.
 func (idx *Indexer) Index() (map[string][sha512.Size]byte, error) {
 	log.Infof("indexing directory tree")
 	return HashAll(idx.root)

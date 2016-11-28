@@ -29,6 +29,8 @@ import (
 	"github.com/satori/go.uuid"
 )
 
+// Container for storing backed up files. Handles splitting content
+// between cubes.
 type Molecule struct {
 	Id           string       `json:"id"`
 	Path         string       `json:"path"`
@@ -45,6 +47,7 @@ type Molecule struct {
 	delete_on_close bool
 }
 
+// Create a new molecule.
 func New(path string, hash string) (*Molecule, error) {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -62,6 +65,7 @@ func New(path string, hash string) (*Molecule, error) {
 	}, nil
 }
 
+// Open the file to be backed up.
 func (m *Molecule) Open() error {
 	log.Debugf("opening %s", m.Path)
 	f, err := os.Open(m.Path)
@@ -72,16 +76,19 @@ func (m *Molecule) Open() error {
 	return nil
 }
 
+// Read the file being backed up.
 func (m *Molecule) Read(p []byte) (n int, err error) {
 	n, err = m.fobj.Read(p)
 	m.read_size += int64(n)
 	return
 }
 
+// Seek the backup file.
 func (m *Molecule) Seek(offset int64, whence int) (int64, error) {
 	return m.fobj.Seek(offset, whence)
 }
 
+// Close the backup file.
 func (m *Molecule) Close() error {
 	if err := m.fobj.Close(); err != nil {
 		return err
@@ -95,34 +102,41 @@ func (m *Molecule) Close() error {
 	return nil
 }
 
+// Get the remaining size to be read.
 func (m *Molecule) Size() int64 {
 	return m.cur_size - m.read_size
 }
 
+// Get the current file info.
 func (m *Molecule) Info() os.FileInfo {
 	return m.cur_info
 }
 
+// Get the original file info.
 func (m *Molecule) OrigInfo() os.FileInfo {
 	return m.orig_info
 }
 
+// Serialize the molecule header.
 func (m *Molecule) Header() ([]byte, error) {
 	return utils.ToJSON(m)
 }
 
+// Create a new atom instance.
 func (m *Molecule) NewAtom(cubeId string, size int64) *atom.Atom {
 	a := atom.New(m.Id, cubeId, size)
 	m.Atoms = append(m.Atoms, a)
 	return a
 }
 
+// Encrypt the file contents.
 func (m *Molecule) Encrypt() error {
 	log.Debugf("encrypting %s", m.Path)
 	log.Warn("encrytion not supported")
 	return nil
 }
 
+// Compress file contents.
 func (m *Molecule) Compress() error {
 	log.Debugf("compressing %s", m.Path)
 	// Get a tmp file to compress into.

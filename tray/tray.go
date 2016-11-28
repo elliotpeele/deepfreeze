@@ -26,6 +26,8 @@ import (
 	"github.com/satori/go.uuid"
 )
 
+// Top level structure for any single backup. Contains reference to
+// previous tray.
 type Tray struct {
 	Id          string       `json:"tray_id"`
 	CreatedAt   time.Time    `json:"created_at"`
@@ -42,18 +44,21 @@ type Tray struct {
 	backupdir   string
 }
 
+// Structure for storing cube metadata.
 type cube_data struct {
 	Id    string       `json:"cube_id"`
 	Hash  string       `json:"hash"`
 	Files []*file_data `json:"files"`
 }
 
+// Structure for storing file metaadata.
 type file_data struct {
 	Id   string `json:"file_id"`
 	Hash string `json:"hash"`
 	Path string `json:"path"`
 }
 
+// Create a new tray instance.
 func New(backupdir string) (*Tray, error) {
 	c, err := cube.New(1024, backupdir)
 	if err != nil {
@@ -73,6 +78,7 @@ func New(backupdir string) (*Tray, error) {
 	return t, nil
 }
 
+// Get the current cube from the tray.
 func (t *Tray) CurrentCube() *cube.Cube {
 	cur := t.rootCube
 	for cur.Child != nil {
@@ -81,6 +87,7 @@ func (t *Tray) CurrentCube() *cube.Cube {
 	return cur
 }
 
+// Write a molecule to the tray.
 func (t *Tray) WriteMolecule(m *molecule.Molecule) (n int, err error) {
 	log.Infof("Backing up %s", m.Path)
 	// Open the backend file, hopefully it still exists.
@@ -100,6 +107,7 @@ func (t *Tray) WriteMolecule(m *molecule.Molecule) (n int, err error) {
 	return t.CurrentCube().WriteMolecule(m)
 }
 
+// Upload a frozen tray.
 func (t *Tray) Upload() error {
 	return nil
 }

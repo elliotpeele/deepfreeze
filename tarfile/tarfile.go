@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+// High level package around reading and writing tar archives.
+// A tarfile can either be written to or read from, not both.
 package tarfile
 
 import (
@@ -24,37 +26,40 @@ import (
 	"os"
 )
 
-// High level package around reading and writing tar archives.
-// A tarfile can either be written to or read from, not both.
-
 var (
 	readError  = fmt.Errorf("can not read from write only file")
 	writeError = fmt.Errorf("can not write to read only file")
 )
 
+// Interface for storing archive metadata.
 type MetadataStore interface {
 	WriteMetadata(name string, data []byte) (n int, err error)
 	ReadMetadata() (md *metadataRecord, err error)
 }
 
+// Interface for reading tarfiles.
 type FileReader interface {
 	ReadFile(w io.Writer) (info os.FileInfo, err error)
 }
 
+// Interface for writing tarfiles.
 type FileWriter interface {
 	WriteFile(info os.FileInfo, r io.Reader) (n int, err error)
 }
 
+// Interface for reading and writing tarfiles.
 type FileReadWriter interface {
 	FileReader
 	FileWriter
 }
 
+// Private structure for storing record metadata.
 type metadataRecord struct {
 	Name string
 	Data []byte
 }
 
+// High level structure for handling tarfiles.
 type TarFile struct {
 	w    *tar.Writer
 	r    *tar.Reader
@@ -79,6 +84,7 @@ func Open(r io.Reader) *TarFile {
 	}
 }
 
+// Close tarfile, flushes content to underlying writer.
 func (tf *TarFile) Close() error {
 	if tf.w == nil {
 		return writeError
@@ -86,6 +92,7 @@ func (tf *TarFile) Close() error {
 	return tf.w.Close()
 }
 
+// Finish writin current file data.
 func (tf *TarFile) Flush() error {
 	if tf.w == nil {
 		return writeError
@@ -93,10 +100,12 @@ func (tf *TarFile) Flush() error {
 	return tf.w.Flush()
 }
 
+// Get the current size of the underlying writer.
 func (tf *TarFile) Size() int64 {
 	return tf.size
 }
 
+// Read content of next archive file into specified writer.
 func (tf *TarFile) ReadFile(w io.Writer) (info os.FileInfo, err error) {
 	if tf.r == nil {
 		return nil, readError
@@ -114,6 +123,7 @@ func (tf *TarFile) ReadFile(w io.Writer) (info os.FileInfo, err error) {
 	return header.FileInfo(), nil
 }
 
+// Write content of reader to tarfile.
 func (tf *TarFile) WriteFile(info os.FileInfo, r io.Reader) (n int, err error) {
 	if tf.w == nil {
 		return 0, writeError
@@ -138,6 +148,7 @@ func (tf *TarFile) WriteFile(info os.FileInfo, r io.Reader) (n int, err error) {
 	return int(written), nil
 }
 
+// Read metadata from the tarfile.
 func (tf *TarFile) ReadMetadata() (md *metadataRecord, err error) {
 	if tf.r == nil {
 		return nil, readError
@@ -161,6 +172,7 @@ func (tf *TarFile) ReadMetadata() (md *metadataRecord, err error) {
 	return md, nil
 }
 
+// Write metadata to the tarfile.
 func (tf *TarFile) WriteMetadata(name string, data []byte) (n int, err error) {
 	if tf.w == nil {
 		return 0, writeError
