@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/elliotpeele/deepfreeze/encrypt"
 	"github.com/elliotpeele/deepfreeze/indexer"
 	"github.com/elliotpeele/deepfreeze/log"
 	"github.com/elliotpeele/deepfreeze/molecule"
@@ -32,17 +33,27 @@ type Freezer struct {
 	tray      *tray.Tray
 	indexer   *indexer.Indexer
 	backupdir string
+	em        *encrypt.EncryptionManager
 }
 
 // Create a new freezer instance.
-func New(root string, backupdir string, excludes []string) (*Freezer, error) {
+func New(root string, backupdir string, keyringdir string, excludes []string) (*Freezer, error) {
 	t, err := tray.New(backupdir)
 	if err != nil {
+		return nil, err
+	}
+	em, err := encrypt.New(keyringdir)
+	if err != nil {
+		return nil, err
+	}
+	// Generate keys if they don't already exist.
+	if err := em.GenKey(); err != nil {
 		return nil, err
 	}
 	return &Freezer{
 		tray:      t,
 		indexer:   indexer.New(root, excludes),
+		em:        em,
 		backupdir: backupdir,
 	}, nil
 }
@@ -58,7 +69,7 @@ func (f *Freezer) Freeze() error {
 	// Map files into molecules.
 	mols := make(map[string]*molecule.Molecule)
 	for path, hash := range files {
-		mol, err := molecule.New(path, fmt.Sprintf("%x", hash))
+		mol, err := molecule.New(path, fmt.Sprintf("%x", hash), f.em)
 		if err != nil {
 			return err
 		}

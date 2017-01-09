@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/elliotpeele/deepfreeze/atom"
+	"github.com/elliotpeele/deepfreeze/encrypt"
 	"github.com/elliotpeele/deepfreeze/log"
 	"github.com/elliotpeele/deepfreeze/utils"
 	"github.com/satori/go.uuid"
@@ -45,10 +46,11 @@ type Molecule struct {
 	fobj            *os.File
 	read_size       int64
 	delete_on_close bool
+	em              *encrypt.EncryptionManager
 }
 
 // Create a new molecule.
-func New(path string, hash string) (*Molecule, error) {
+func New(path string, hash string, em *encrypt.EncryptionManager) (*Molecule, error) {
 	info, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -62,6 +64,7 @@ func New(path string, hash string) (*Molecule, error) {
 		orig_info:       info,
 		cur_info:        info,
 		delete_on_close: false,
+		em:              em,
 	}, nil
 }
 
@@ -93,6 +96,11 @@ func (m *Molecule) Close() error {
 	if err := m.fobj.Close(); err != nil {
 		return err
 	}
+	return m.removeIfMarked()
+}
+
+// Remove the backing file if marked to do so.
+func (m *Molecule) removeIfMarked() error {
 	if m.delete_on_close {
 		log.Debugf("deleting %s", m.fobj.Name())
 		if err := os.Remove(m.fobj.Name()); err != nil {
@@ -132,7 +140,48 @@ func (m *Molecule) NewAtom(cubeId string, size int64) *atom.Atom {
 // Encrypt the file contents.
 func (m *Molecule) Encrypt() error {
 	log.Debugf("encrypting %s", m.Path)
-	log.Warn("encrytion not supported")
+	if m.em == nil {
+		log.Warnf("encryption system not initialized, skipping %s", m.Path)
+		return nil
+	}
+	// Get a tmp file to compress into.
+	tmpf, err := ioutil.TempFile("", "deepfreeze")
+	if err != nil {
+		return err
+	}
+	// Compress orignal file.
+	w, err := m.em.Encrypt(m.fobj)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(w, m.fobj); err != nil {
+		return err
+	}
+	// Flush the compressor once complete.
+	if err := w.Close(); err != nil {
+		return err
+	}
+	// Rewind tmp file.
+	if _, err := tmpf.Seek(0, 0); err != nil {
+		return err
+	}
+	// Check and store size.
+	info, err := tmpf.Stat()
+	if err != nil {
+		return err
+	}
+	m.cur_size = info.Size()
+	m.cur_info = info
+	// Close underlying file object.
+	m.fobj.Close()
+	// Remove if marked.
+	if err := m.removeIfMarked(); err != nil {
+		return err
+	}
+	// Replace with tmp file.
+	m.fobj = tmpf
+	// Mark tmp file for deletion.
+	m.delete_on_close = true
 	return nil
 }
 
@@ -169,6 +218,10 @@ func (m *Molecule) Compress() error {
 	m.cur_info = info
 	// Close underlying file object.
 	m.fobj.Close()
+	// Remove if marked.
+	if err := m.removeIfMarked(); err != nil {
+		return err
+	}
 	// Replace with tmp file.
 	m.fobj = tmpf
 	// Mark tmp file for deletion.

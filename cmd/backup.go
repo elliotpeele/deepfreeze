@@ -41,12 +41,17 @@ to quickly create a Cobra application.`,
 			return err
 		}
 
+		keydir, err := cmd.PersistentFlags().GetString("keydir")
+		if err != nil {
+			return err
+		}
+
 		excludes, err := cmd.PersistentFlags().GetStringSlice("exclude")
 		if err != nil {
 			return err
 		}
 
-		f, err := freezer.New(root, dest, excludes)
+		f, err := freezer.New(root, dest, keydir, excludes)
 		if err != nil {
 			return err
 		}
@@ -69,18 +74,11 @@ func init() {
 		"path for storing backup data")
 	viper.BindPFlag("dest", backupCmd.PersistentFlags().Lookup("dest"))
 
+	backupCmd.PersistentFlags().String("keydir", "/var/lib/deepfreeze/keys/",
+		"path for storing encryption keys")
+	viper.BindPFlag("keydir", backupCmd.PersistentFlags().Lookup("keydir"))
+
 	backupCmd.PersistentFlags().StringSliceP("exclude", "e", nil,
 		"directory paths to ignore")
 	viper.BindPFlag("exclude", backupCmd.PersistentFlags().Lookup("exclude"))
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// backupCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// backupCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-
 }

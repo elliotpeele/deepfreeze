@@ -38,7 +38,7 @@ type EncryptionManager struct {
 	ringDir string
 }
 
-func NewEncryptionManager(ringDir string) (*EncryptionManager, error) {
+func New(ringDir string) (*EncryptionManager, error) {
 	return &EncryptionManager{
 		ringDir: ringDir,
 	}, nil
